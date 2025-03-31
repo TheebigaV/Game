@@ -1,0 +1,305 @@
+:root {
+    --primary: #FFC107;
+    --primary-dark: #FFA000;
+    --secondary: #FF9800;
+    --correct: #4CAF50;
+    --wrong: #F44336;
+    --text: #333;
+    --light-text: #666;
+    --bg: #f5f5f5;
+    --white: #ffffff;
+    --light-gray: #eeeeee;
+    --medium-gray: #dddddd;
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+    --font-sm: 0.875rem;
+    --font-md: 1rem;
+    --font-lg: 1.25rem;
+    --font-xl: 1.5rem;
+    --font-xxl: 1.75rem;
+    --border-radius-sm: 4px;
+    --border-radius-md: 8px;
+    --border-radius-lg: 12px;
+    --border-radius-xl: 16px;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: var(--spacing-md);
+}
+
+.container {
+    background-color: var(--white);
+    border-radius: var(--border-radius-xl);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 500px;
+    padding: var(--spacing-lg);
+    position: relative;
+}
+
+.hidden {
+    display: none !important;
+}
+
+header {
+    text-align: center;
+    margin-bottom: var(--spacing-lg);
+}
+
+h1 {
+    color: var(--primary-dark);
+    font-size: var(--font-xxl);
+    margin-bottom: var(--spacing-sm);
+}
+
+h2 {
+    font-size: var(--font-lg);
+    color: var(--text);
+    margin-bottom: var(--spacing-md);
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.auth-form label {
+    font-weight: 500;
+    color: var(--text);
+}
+
+.auth-form input {
+    padding: var(--spacing-md);
+    font-size: var(--font-md);
+    border: 2px solid var(--medium-gray);
+    border-radius: var(--border-radius-md);
+    transition: all 0.2s ease;
+}
+
+.auth-form input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
+}
+
+.auth-buttons {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+button {
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-size: var(--font-md);
+    font-weight: 500;
+    border-radius: var(--border-radius-md);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+}
+
+button:hover {
+    background-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
+}
+
+button:active {
+    transform: translateY(0);
+}
+
+.message {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    text-align: center;
+    font-weight: 500;
+}
+
+.error {
+    color: var(--wrong);
+    background-color: rgba(244, 67, 54, 0.1);
+}
+
+.success {
+    color: var(--correct);
+    background-color: rgba(76, 175, 80, 0.1);
+}
+
+.info {
+    color: var(--text);
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Game Menu Styles */
+.game-menu-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md) 0;
+}
+
+#start-game-btn {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: var(--font-lg);
+}
+
+.user-stats {
+    text-align: center;
+    margin-top: var(--spacing-lg);
+}
+
+.user-stats p {
+    font-size: var(--font-md);
+    margin: var(--spacing-sm) 0;
+}
+
+/* Game Styles */
+.stats {
+    display: flex;
+    justify-content: space-between;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+}
+
+.stat-box {
+    background-color: rgba(0, 0, 0, 0.03);
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+    flex: 1;
+    min-width: 80px;
+}
+
+.game-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.loading {
+    text-align: center;
+    color: var(--light-text);
+    padding: var(--spacing-lg);
+}
+
+.puzzle-container {
+    display: flex;
+    justify-content: center;
+    margin: var(--spacing-md) 0;
+}
+
+#puzzle-image {
+    max-width: 100%;
+    max-height: 250px;
+    border: 3px solid var(--primary);
+    border-radius: var(--border-radius-lg);
+}
+
+.input-area {
+    display: flex;
+    gap: var(--spacing-md);
+    margin: var(--spacing-md) 0;
+}
+
+#user-answer {
+    flex: 1;
+    padding: var(--spacing-md);
+    font-size: var(--font-md);
+    border: 2px solid var(--medium-gray);
+    border-radius: var(--border-radius-md);
+    text-align: center;
+}
+
+#user-answer:focus {
+    border-color: var(--primary);
+    outline: none;
+}
+
+.button-container {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-md);
+}
+
+.try-again {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-top: var(--spacing-lg);
+    padding: var(--spacing-md);
+    background-color: var(--light-gray);
+    border-radius: var(--border-radius-md);
+}
+
+#logout-btn, #game-logout-btn {
+    position: absolute;
+    top: var(--spacing-md);
+    right: var(--spacing-md);
+    background-color: var(--wrong);
+    color: var(--white);
+    padding: var(--spacing-sm) var(--spacing-md);
+    font-size: var(--font-sm);
+    border-radius: var(--border-radius-md);
+}
+
+#logout-btn:hover, #game-logout-btn:hover {
+    background-color: #d32f2f;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
+
+.timer-warning {
+    animation: pulse 1s infinite;
+    color: var(--wrong);
+}
+
+@media (max-width: 480px) {
+    .container {
+        padding: var(--spacing-md);
+    }
+    
+    .auth-buttons, .button-container {
+        flex-direction: column;
+    }
+    
+    .input-area {
+        flex-direction: column;
+    }
+    
+    #submit-btn {
+        width: 100%;
+    }
+}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Banana Math Puzzle Challenge</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Authentication -->
+    <section class="container" id="auth-container">
+        <header>
+            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h2>Login</h2>
+        </header>
+        <div class="auth-form" id="login-form">
+            <label for="username">Username:</label>
+            <input type="text" id="username" placeholder="Enter your username" required>
+            <label for="password">Password:</label>
+            <input type="password" id="password" placeholder="Enter your password" required>
+            <div class="auth-buttons">
+                <button type="button" id="login-btn">Login</button>
+                <button type="button" id="show-register-btn">Register</button>
+            </div>
+        </div>
+        <div id="auth-message" class="message"></div>
+    </section>
+
+    <!-- Registration -->
+    <section class="container hidden" id="register-container">
+        <header>
+            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h2>Register</h2>
+        </header>
+        <div class="auth-form" id="register-form">
+            <label for="new-username">Username:</label>
+            <input type="text" id="new-username" placeholder="Choose a username" required>
+            <label for="new-password">Password:</label>
+            <input type="password" id="new-password" placeholder="Choose a password" required>
+            <label for="confirm-password">Confirm Password:</label>
+            <input type="password" id="confirm-password" placeholder="Confirm your password" required>
+            <div class="auth-buttons">
+                <button type="button" id="register-btn">Register</button>
+                <button type="button" id="show-login-btn">Login</button>
+            </div>
+        </div>
+        <div id="register-message" class="message"></div>
+    </section>
+
+    <!-- Game Menu -->
+    <section class="container hidden" id="game-menu-container">
+        <button type="button" id="logout-btn">Logout</button>
+        <header>
+            <h1>🍌 Banana Math Challenge 🍌</h1>
+        </header>
+        <div class="game-menu-content">
+            <p>Welcome, <span id="menu-current-user">Guest</span>!</p>
+            <button type="button" id="start-game-btn">Start Game</button>
+            <div class="user-stats">
+                <p>High Score: <span id="high-score">0</span></p>
+                <p>Best Streak: <span id="best-streak">0</span></p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Game -->
+    <section class="container hidden" id="game-container">
+        <button type="button" id="game-logout-btn">Logout</button>
+        <header>
+            <h1>🍌 Banana Math Challenge 🍌</h1>
+        </header>
+        <div class="stats" id="stats">
+            <div class="stat-box">User: <span id="current-user">Guest</span></div>
+            <div class="stat-box">Score: <span id="score">0</span></div>
+            <div class="stat-box">Time: <span id="timer">30</span>s</div>
+            <div class="stat-box">Streak: <span id="streak">0</span></div>
+        </div>
+        <div class="game-content">
+            <div class="loading hidden" id="loading">Loading puzzle...</div>
+            <div class="error hidden" id="error"></div>
+            <div class="puzzle-container">
+                <img id="puzzle-image" alt="Math puzzle with bananas representing numbers">
+            </div>
+            <div class="input-area">
+                <input type="number" id="user-answer" placeholder="Your answer">
+                <button type="button" id="submit-btn">Submit</button>
+            </div>
+            <div id="result" class="message hidden"></div>
+            <div class="button-container">
+                <button type="button" id="new-btn">New Puzzle</button>
+                <button type="button" id="hint-btn">Show Hint</button>
+            </div>
+            <div class="try-again hidden" id="try-again">
+                <p>Would you like to try again?</p>
+                <button type="button" id="try-again-btn">Try Again</button>
+                <button type="button" id="back-to-menu-btn">Back to Menu</button>
+            </div>
+        </div>
+    </section>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+
+            
