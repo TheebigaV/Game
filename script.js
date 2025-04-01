@@ -1,33 +1,41 @@
 (() => {
-    // DOM Elements
+    const firebaseConfig = {
+        apiKey: "AIzaSyBCFOfPu4_DWsY0s3OYZgQzSDk6da0eJZU",
+        authDomain: "game-37d0b.firebaseapp.com",
+        projectId: "game-37d0b",
+        storageBucket: "game-37d0b.appspot.com",
+        messagingSenderId: "533243023959",
+        appId: "1:533243023959:web:350065c06f5544f02a4912"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
     const DOM = {
-        // Auth elements
         authContainer: document.getElementById('auth-container'),
         registerContainer: document.getElementById('register-container'),
         gameMenuContainer: document.getElementById('game-menu-container'),
         gameContainer: document.getElementById('game-container'),
         authMessage: document.getElementById('auth-message'),
         registerMessage: document.getElementById('register-message'),
-        username: document.getElementById('username'),
+        email: document.getElementById('email'),
         password: document.getElementById('password'),
-        newUsername: document.getElementById('new-username'),
+        newEmail: document.getElementById('new-email'),
         newPassword: document.getElementById('new-password'),
         confirmPassword: document.getElementById('confirm-password'),
         loginBtn: document.getElementById('login-btn'),
         registerBtn: document.getElementById('register-btn'),
         showRegisterBtn: document.getElementById('show-register-btn'),
         showLoginBtn: document.getElementById('show-login-btn'),
-        
-        // Game menu elements
         menuCurrentUser: document.getElementById('menu-current-user'),
         highScore: document.getElementById('high-score'),
         bestStreak: document.getElementById('best-streak'),
         startGameBtn: document.getElementById('start-game-btn'),
         logoutBtn: document.getElementById('logout-btn'),
-        
-        // Game elements
         gameLogoutBtn: document.getElementById('game-logout-btn'),
         currentUser: document.getElementById('current-user'),
+        currentDifficulty: document.getElementById('current-difficulty'),
         puzzleImage: document.getElementById('puzzle-image'),
         userAnswer: document.getElementById('user-answer'),
         submitBtn: document.getElementById('submit-btn'),
@@ -41,12 +49,14 @@
         streakSpan: document.getElementById('streak'),
         tryAgainDiv: document.getElementById('try-again'),
         tryAgainBtn: document.getElementById('try-again-btn'),
-        backToMenuBtn: document.getElementById('back-to-menu-btn')
+        backToMenuBtn: document.getElementById('back-to-menu-btn'),
+        rememberMe: document.getElementById('remember-me'),
+        sessionWarning: document.getElementById('session-warning'),
+        countdown: document.getElementById('countdown'),
+        difficultyBtns: document.querySelectorAll('.difficulty-btn')
     };
 
-    // Game State
     const state = {
-        registeredUsers: JSON.parse(localStorage.getItem('bananaMathUsers')) || {},
         currentUser: null,
         score: 0,
         highScore: 0,
@@ -55,6 +65,15 @@
         timer: null,
         timeLeft: 30,
         solution: null,
+        difficulty: 'easy',
+        inactivityTimer: null,
+        warningTimer: null,
+        countdownInterval: null,
+        difficultySettings: {
+            easy: { time: 45, points: 5, hintType: 'range' },
+            medium: { time: 30, points: 10, hintType: 'oddEven' },
+            hard: { time: 15, points: 15, hintType: 'none' }
+        },
         sampleImages: [
             { url: 'https://www.sanfoh.com/uob/banana/data/t1539acf2dc756aae70594758e7n97.png', solution: 7 },
             { url: 'https://www.sanfoh.com/uob/banana/data/t1d0c782c2a6eb458e66bad332cn96.png', solution: 6 },
@@ -68,375 +87,471 @@
         previousSolution: null
     };
 
-    // Simple hash function for basic password security
-    function simpleHash(str) {
-        let hash = 0;
-        for (let i = 0; i < str.length; i++) {
-            const char = str.charCodeAt(i);
-            hash = (hash << 5) - hash + char;
-            hash = hash & hash;
+
+    async function setAuthPersistence(remember) {
+        try {
+            const persistence = remember ? 
+                firebase.auth.Auth.Persistence.LOCAL : 
+                firebase.auth.Auth.Persistence.SESSION;
+            
+            await auth.setPersistence(persistence);
+            return true;
+        } catch (error) {
+            console.error("Persistence error:", error);
+            return false;
         }
-        return hash.toString();
     }
 
-    // Initialize the application
-    function init() {
-        setupEventListeners();
-        showAuthScreen();
+    function trackActivity() {
+        clearTimeout(state.inactivityTimer);
+        clearTimeout(state.warningTimer);
+        clearInterval(state.countdownInterval);
+        DOM.sessionWarning.classList.add("hidden");
+
+        state.inactivityTimer = setTimeout(() => {
+            handleLogout();
+            alert("You were logged out due to inactivity.");
+        }, 30 * 60 * 1000);
+
+        state.warningTimer = setTimeout(() => {
+            DOM.sessionWarning.classList.remove("hidden");
+            startCountdown(5 * 60);
+        }, 25 * 60 * 1000);
+    }
+
+    function startCountdown(seconds) {
+        let remaining = seconds;
+        updateCountdownDisplay(remaining);
+
+        state.countdownInterval = setInterval(() => {
+            remaining--;
+            updateCountdownDisplay(remaining);
+            if (remaining <= 0) clearInterval(state.countdownInterval);
+        }, 1000);
+    }
+
+    function updateCountdownDisplay(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        DOM.countdown.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    async function logSession(action) {
+        if (!state.currentUser) return;
         
-        // Preload sample images
-        state.sampleImages.forEach(img => {
-            const image = new Image();
-            image.src = img.url;
+        await db.collection("sessions").doc(state.currentUser.uid).set({
+            email: state.currentUser.email,
+            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
+            action: action,
+            device: navigator.userAgent
+        }, { merge: true });
+    }
+
+    function initActivityTracking() {
+        ["mousemove", "keydown", "click", "scroll"].forEach(event => {
+            window.addEventListener(event, trackActivity);
         });
     }
 
-    // Setup all event listeners
-    function setupEventListeners() {
-        // Authentication events
-        DOM.loginBtn.addEventListener('click', handleLogin);
-        DOM.showRegisterBtn.addEventListener('click', showRegisterScreen);
-        DOM.registerBtn.addEventListener('click', handleRegister);
-        DOM.showLoginBtn.addEventListener('click', showAuthScreen);
-        DOM.logoutBtn.addEventListener('click', handleLogout);
-        DOM.gameLogoutBtn.addEventListener('click', handleLogout);
-        
-        // Game menu events
-        DOM.startGameBtn.addEventListener('click', startGame);
-        DOM.backToMenuBtn.addEventListener('click', showGameMenu);
-        
-        // Game events
-        DOM.submitBtn.addEventListener('click', checkAnswer);
-        DOM.newBtn.addEventListener('click', fetchNewPuzzle);
-        DOM.hintBtn.addEventListener('click', showHint);
-        DOM.tryAgainBtn.addEventListener('click', fetchNewPuzzle);
-        DOM.userAnswer.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') checkAnswer();
-        });
-    }
 
-    // Authentication Functions
-    function showAuthScreen() {
-        DOM.username.value = '';
-        DOM.password.value = '';
-        DOM.authMessage.textContent = '';
-        DOM.authMessage.className = 'message';
-        DOM.authContainer.classList.remove('hidden');
-        DOM.registerContainer.classList.add('hidden');
-        DOM.gameMenuContainer.classList.add('hidden');
-        DOM.gameContainer.classList.add('hidden');
-    }
-
-    function showRegisterScreen() {
-        DOM.newUsername.value = '';
-        DOM.newPassword.value = '';
-        DOM.confirmPassword.value = '';
-        DOM.registerMessage.textContent = '';
-        DOM.registerMessage.className = 'message';
-        DOM.authContainer.classList.add('hidden');
-        DOM.registerContainer.classList.remove('hidden');
-        DOM.gameMenuContainer.classList.add('hidden');
-        DOM.gameContainer.classList.add('hidden');
-    }
-
-    function showGameMenu() {
-        DOM.authContainer.classList.add('hidden');
-        DOM.registerContainer.classList.add('hidden');
-        DOM.gameMenuContainer.classList.remove('hidden');
-        DOM.gameContainer.classList.add('hidden');
-        
-        DOM.menuCurrentUser.textContent = state.currentUser;
-        DOM.highScore.textContent = state.highScore;
-        DOM.bestStreak.textContent = state.bestStreak;
-    }
-
-    function handleLogin() {
-        const username = DOM.username.value.trim();
+    async function handleLogin() {
+        const email = DOM.email.value.trim();
         const password = DOM.password.value.trim();
+        const rememberMe = DOM.rememberMe.checked;
 
-        if (!username || !password) {
-            showMessage(DOM.authMessage, 'Please enter both username and password.', 'error');
+        if (!email || !password) {
+            showMessage(DOM.authMessage, "Please enter email and password.", "error");
             return;
         }
 
-        if (state.registeredUsers[username] && state.registeredUsers[username] === simpleHash(password)) {
-            state.currentUser = username;
-            const userStats = JSON.parse(localStorage.getItem(`bananaMathStats_${username}`)) || {};
-            state.highScore = userStats.highScore || 0;
-            state.bestStreak = userStats.bestStreak || 0;
+        DOM.loginBtn.disabled = true;
+        DOM.loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
+
+        try {
+            const persistenceSet = await setAuthPersistence(rememberMe);
+            if (!persistenceSet) {
+                throw new Error("Failed to set authentication persistence");
+            }
+
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            state.currentUser = userCredential.user;
             
+            await logSession("login");
+            trackActivity();
+            
+            showMessage(DOM.authMessage, "Login successful!", "success");
+            await loadUserStats();
             showGameMenu();
-        } else {
-            showMessage(DOM.authMessage, 'Invalid username or password.', 'error');
+        } catch (error) {
+            showMessage(DOM.authMessage, handleFirebaseError(error), "error");
+        } finally {
+            DOM.loginBtn.disabled = false;
+            DOM.loginBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Login';
         }
     }
 
-    function handleRegister() {
-        const username = DOM.newUsername.value.trim();
+    async function handleRegister() {
+        const email = DOM.newEmail.value.trim();
         const password = DOM.newPassword.value.trim();
         const confirmPassword = DOM.confirmPassword.value.trim();
 
-        if (!username || !password || !confirmPassword) {
-            showMessage(DOM.registerMessage, 'Please fill in all fields.', 'error');
-            return;
-        }
-
-        if (username.length < 4) {
-            showMessage(DOM.registerMessage, 'Username must be at least 4 characters.', 'error');
-            return;
-        }
-
-        if (password.length < 6) {
-            showMessage(DOM.registerMessage, 'Password must be at least 6 characters.', 'error');
+        if (!email || !password || !confirmPassword) {
+            showMessage(DOM.registerMessage, "Please fill all fields.", "error");
             return;
         }
 
         if (password !== confirmPassword) {
-            showMessage(DOM.registerMessage, 'Passwords do not match.', 'error');
+            showMessage(DOM.registerMessage, "Passwords don't match.", "error");
             return;
         }
 
-        if (state.registeredUsers[username]) {
-            showMessage(DOM.registerMessage, 'Username already exists. Please choose another one.', 'error');
+        if (password.length < 6) {
+            showMessage(DOM.registerMessage, "Password must be at least 6 characters.", "error");
             return;
         }
 
-        state.registeredUsers[username] = simpleHash(password);
-        localStorage.setItem('bananaMathUsers', JSON.stringify(state.registeredUsers));
-        
-        const userStats = {
-            highScore: 0,
-            bestStreak: 0
+        DOM.registerBtn.disabled = true;
+        DOM.registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
+
+        try {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            await db.collection("users").doc(userCredential.user.uid).set({
+                email: email,
+                highScore: 0,
+                bestStreak: 0,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
+
+            DOM.newEmail.value = "";
+            DOM.newPassword.value = "";
+            DOM.confirmPassword.value = "";
+            showAuthScreen();
+            showMessage(DOM.authMessage, "Registration successful! Please login.", "success");
+            
+        } catch (error) {
+            showMessage(DOM.registerMessage, handleFirebaseError(error), "error");
+        } finally {
+            DOM.registerBtn.disabled = false;
+            DOM.registerBtn.innerHTML = '<i class="fas fa-user-plus"></i> Register';
+        }
+    }
+
+    async function handleLogout() {
+        clearTimeout(state.inactivityTimer);
+        clearTimeout(state.warningTimer);
+        clearInterval(state.countdownInterval);
+
+        try {
+            await logSession("logout");
+            await auth.signOut();
+            state.currentUser = null;
+            showAuthScreen();
+        } catch (error) {
+            console.error("Logout error:", error);
+        }
+    }
+
+    function handleFirebaseError(error) {
+        const messages = {
+            "auth/email-already-in-use": "Email already registered.",
+            "auth/invalid-email": "Invalid email address.",
+            "auth/weak-password": "Password must be 6+ characters.",
+            "auth/user-not-found": "Email not found.",
+            "auth/wrong-password": "Incorrect password.",
+            "auth/too-many-requests": "Too many attempts. Try again later."
         };
-        localStorage.setItem(`bananaMathStats_${username}`, JSON.stringify(userStats));
+        return messages[error.code] || "Authentication failed. Please try again.";
+    }
+
+
+    async function loadUserStats() {
+        if (!state.currentUser) return;
+
+        try {
+            const doc = await db.collection("users").doc(state.currentUser.uid).get();
+            if (doc.exists) {
+                const data = doc.data();
+                state.highScore = data.highScore || 0;
+                state.bestStreak = data.bestStreak || 0;
+                
+                DOM.highScore.textContent = state.highScore;
+                DOM.bestStreak.textContent = state.bestStreak;
+            }
+        } catch (error) {
+            console.error("Error loading user stats:", error);
+        }
+    }
+
+    async function updateUserStats() {
+        if (!state.currentUser) return;
+
+        try {
+            await db.collection("users").doc(state.currentUser.uid).update({
+                highScore: state.highScore,
+                bestStreak: state.bestStreak
+            });
+        } catch (error) {
+            console.error("Error updating user stats:", error);
+        }
+    }
+
+
+
+    function showMessage(element, message, type) {
+        const icon = type === 'error' ? 'fas fa-exclamation-circle' : 
+                    type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
         
-        showMessage(DOM.registerMessage, 'Registration successful! Please log in.', 'success');
+        element.innerHTML = `<i class="${icon}"></i> ${message}`;
+        element.className = `message ${type}`;
+        element.style.display = 'flex';
         
         setTimeout(() => {
+            element.style.opacity = '0';
+            setTimeout(() => {
+                element.style.display = 'none';
+                element.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    }
+
+    function showAuthScreen() {
+        DOM.email.value = "";
+        DOM.password.value = "";
+        DOM.authContainer.classList.remove("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.email.focus();
+    }
+
+    function showRegisterScreen() {
+        DOM.newEmail.value = "";
+        DOM.newPassword.value = "";
+        DOM.confirmPassword.value = "";
+        DOM.registerMessage.textContent = "";
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.remove("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.newEmail.focus();
+    }
+
+    function showGameMenu() {
+        if (!state.currentUser) {
             showAuthScreen();
-            DOM.username.value = username;
-            DOM.password.value = '';
-        }, 1500);
+            return;
+        }
+        
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.remove("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        
+        DOM.menuCurrentUser.textContent = state.currentUser.email;
+        DOM.highScore.textContent = state.highScore;
+        DOM.bestStreak.textContent = state.bestStreak;
     }
 
-    function handleLogout() {
-        clearInterval(state.timer);
-        state.currentUser = null;
-        showAuthScreen();
-    }
 
-    // Game Functions
     function startGame() {
-        DOM.authContainer.classList.add('hidden');
-        DOM.registerContainer.classList.add('hidden');
-        DOM.gameMenuContainer.classList.add('hidden');
-        DOM.gameContainer.classList.remove('hidden');
+        if (!state.currentUser) {
+            showAuthScreen();
+            return;
+        }
         
-        DOM.currentUser.textContent = state.currentUser;
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.remove("hidden");
+        
+        DOM.currentUser.textContent = state.currentUser.email;
+        DOM.currentDifficulty.textContent = 
+            state.difficulty.charAt(0).toUpperCase() + state.difficulty.slice(1);
+        
         resetGame();
-        
-        // Immediately show a puzzle without loading screen
-        useSampleImage();
+        fetchNewPuzzle();
     }
 
     function resetGame() {
         state.score = 0;
         state.streak = 0;
-        state.previousSolution = null;
+        state.timeLeft = state.difficultySettings[state.difficulty].time;
+        
         DOM.scoreSpan.textContent = state.score;
         DOM.streakSpan.textContent = state.streak;
-        clearResult();
-    }
-
-    function fetchNewPuzzle() {
-        DOM.loadingDiv.classList.remove('hidden');
-        DOM.puzzleImage.style.display = 'none';
-        DOM.userAnswer.value = '';
-        clearResult();
-        DOM.tryAgainDiv.classList.add('hidden');
-
-        clearInterval(state.timer);
-        state.timeLeft = 30;
         DOM.timerSpan.textContent = state.timeLeft;
-        DOM.timerSpan.classList.remove('timer-warning');
-
-        // Try to get a different puzzle than the previous one
-        if (state.previousSolution) {
-            if (Math.random() > 0.5) {
-                fetchApiPuzzle(state.previousSolution);
-            } else {
-                useDifferentSampleImage(state.previousSolution);
-            }
-        } else {
-            // First puzzle of the game
-            Math.random() > 0.5 ? fetchApiPuzzle() : useSampleImage();
-        }
-    }
-
-    function fetchApiPuzzle(avoidSolution) {
-        fetch(state.apiUrl)
-            .then(response => {
-                if (!response.ok) throw new Error('Network response was not ok');
-                return response.json();
-            })
-            .then(data => {
-                // If we got the same solution as before, try again
-                if (avoidSolution && data.solution === avoidSolution) {
-                    fetchApiPuzzle(avoidSolution);
-                } else {
-                    state.currentPuzzle = { url: data.image, solution: data.solution };
-                    displayPuzzleImage(data.image, data.solution);
-                }
-            })
-            .catch(error => {
-                console.error('Error fetching puzzle:', error);
-                useDifferentSampleImage(avoidSolution);
-            });
-    }
-
-    function useDifferentSampleImage(avoidSolution) {
-        // Filter out the previous puzzle
-        const availableImages = state.sampleImages.filter(
-            img => !avoidSolution || img.solution !== avoidSolution
-        );
         
-        if (availableImages.length > 0) {
-            const randomIndex = Math.floor(Math.random() * availableImages.length);
-            const selectedImage = availableImages[randomIndex];
-            state.currentPuzzle = selectedImage;
-            displayPuzzleImage(selectedImage.url, selectedImage.solution);
-        } else {
-            // Fallback if all sample images would be the same
-            const randomIndex = Math.floor(Math.random() * state.sampleImages.length);
-            const selectedImage = state.sampleImages[randomIndex];
-            state.currentPuzzle = selectedImage;
-            displayPuzzleImage(selectedImage.url, selectedImage.solution);
-        }
-    }
-
-    function useSampleImage() {
-        const randomIndex = Math.floor(Math.random() * state.sampleImages.length);
-        const selectedImage = state.sampleImages[randomIndex];
-        state.currentPuzzle = selectedImage;
-        displayPuzzleImage(selectedImage.url, selectedImage.solution);
-    }
-
-    function displayPuzzleImage(src, solution) {
-        state.solution = solution;
-        state.previousSolution = solution;
-        DOM.puzzleImage.src = src;
-        
-        // Check if image is already loaded
-        const img = new Image();
-        img.src = src;
-        
-        if (img.complete) {
-            DOM.loadingDiv.classList.add('hidden');
-            DOM.puzzleImage.style.display = 'block';
-            startTimer();
-            DOM.userAnswer.focus();
-        } else {
-            DOM.puzzleImage.onload = () => {
-                DOM.loadingDiv.classList.add('hidden');
-                DOM.puzzleImage.style.display = 'block';
-                startTimer();
-                DOM.userAnswer.focus();
-            };
-            DOM.puzzleImage.onerror = () => {
-                useDifferentSampleImage(state.previousSolution);
-            };
-        }
+        clearInterval(state.timer);
+        startTimer();
     }
 
     function startTimer() {
+        clearInterval(state.timer);
         state.timer = setInterval(() => {
             state.timeLeft--;
             DOM.timerSpan.textContent = state.timeLeft;
-
-            if (state.timeLeft <= 10) {
-                DOM.timerSpan.classList.add('timer-warning');
-            }
-
+            
             if (state.timeLeft <= 0) {
                 clearInterval(state.timer);
-                showResult(`Time's up! The answer was ${state.solution}`, 'incorrect');
-                DOM.tryAgainDiv.classList.remove('hidden');
+                endGame();
             }
         }, 1000);
+    }
+
+    function endGame() {
+        DOM.resultDiv.innerHTML = `<i class="fas fa-clock"></i> Time's up! Final score: ${state.score}`;
+        DOM.resultDiv.className = "message info";
+        DOM.resultDiv.classList.remove("hidden");
+        DOM.tryAgainDiv.classList.remove("hidden");
+        
+        if (state.score > state.highScore) {
+            state.highScore = state.score;
+            updateUserStats();
+        }
+    }
+
+    async function fetchNewPuzzle() {
+        DOM.loadingDiv.classList.remove("hidden");
+        DOM.errorDiv.classList.add("hidden");
+        DOM.puzzleImage.style.display = "none";
+        DOM.resultDiv.classList.add("hidden");
+        DOM.tryAgainDiv.classList.add("hidden");
+        DOM.userAnswer.value = "";
+        DOM.userAnswer.focus();
+        
+        try {
+            state.timeLeft = state.difficultySettings[state.difficulty].time;
+            DOM.timerSpan.textContent = state.timeLeft;
+            
+            const randomIndex = Math.floor(Math.random() * state.sampleImages.length);
+            const puzzle = state.sampleImages[randomIndex];
+            
+            state.solution = puzzle.solution;
+            state.currentPuzzle = puzzle;
+            
+            DOM.puzzleImage.src = puzzle.url;
+            DOM.puzzleImage.onload = () => {
+                DOM.loadingDiv.classList.add("hidden");
+                DOM.puzzleImage.style.display = "block";
+            };
+        } catch (error) {
+            console.error("Error fetching puzzle:", error);
+            DOM.loadingDiv.classList.add("hidden");
+            DOM.errorDiv.classList.remove("hidden");
+        }
     }
 
     function checkAnswer() {
         const userAnswer = parseInt(DOM.userAnswer.value);
         
         if (isNaN(userAnswer)) {
-            showResult('Please enter a valid number', 'incorrect');
+            showMessage(DOM.resultDiv, "Please enter a valid number", "error");
             return;
         }
-
+        
         clearInterval(state.timer);
         
         if (userAnswer === state.solution) {
-            state.score += 10;
+            const points = state.difficultySettings[state.difficulty].points;
+            state.score += points;
             state.streak++;
             
-            if (state.score > state.highScore) {
-                state.highScore = state.score;
-            }
             if (state.streak > state.bestStreak) {
                 state.bestStreak = state.streak;
+                updateUserStats();
             }
             
-            showResult('Correct! +10 points', 'correct');
             DOM.scoreSpan.textContent = state.score;
             DOM.streakSpan.textContent = state.streak;
             
-            // Automatically load a different puzzle after 1.5 seconds
+            DOM.resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> Correct! +${points} points`;
+            DOM.resultDiv.className = "message correct";
+            DOM.resultDiv.classList.remove("hidden");
+            
+            if (state.score > state.highScore) {
+                state.highScore = state.score;
+                updateUserStats();
+            }
+            
             setTimeout(fetchNewPuzzle, 1500);
+            startTimer();
         } else {
             state.streak = 0;
-            showResult(`Incorrect! The answer was ${state.solution}`, 'incorrect');
             DOM.streakSpan.textContent = state.streak;
-            DOM.tryAgainDiv.classList.remove('hidden');
-        }
-        
-        // Save user stats
-        if (state.currentUser) {
-            const userStats = {
-                highScore: state.highScore,
-                bestStreak: state.bestStreak
-            };
-            localStorage.setItem(`bananaMathStats_${state.currentUser}`, JSON.stringify(userStats));
+            
+            DOM.resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> Incorrect! The answer was ${state.solution}`;
+            DOM.resultDiv.className = "message incorrect";
+            DOM.resultDiv.classList.remove("hidden");
+            DOM.tryAgainDiv.classList.remove("hidden");
         }
     }
 
     function showHint() {
-        if (!state.solution) {
-            alert('No puzzle loaded yet');
-            return;
+        let hint = "";
+        const hintType = state.difficultySettings[state.difficulty].hintType;
+        
+        if (hintType === 'range') {
+            const range = 3;
+            const lower = Math.max(0, state.solution - range);
+            const upper = state.solution + range;
+            hint = `The answer is between ${lower} and ${upper}`;
+        } else if (hintType === 'oddEven') {
+            hint = `The answer is ${state.solution % 2 === 0 ? 'even' : 'odd'}`;
+        } else {
+            hint = "No hints available for this difficulty";
         }
-        const min = Math.max(0, state.solution - 10);
-        const max = state.solution + 10;
-        alert(`Hint: The answer is between ${min} and ${max}`);
+        
+        showMessage(DOM.resultDiv, hint, "info");
     }
 
-    // UI Helper Functions
-    function showMessage(element, message, type) {
-        element.textContent = message;
-        element.className = 'message ' + type;
+
+    function setupEventListeners() {
+        DOM.loginBtn.addEventListener("click", handleLogin);
+        DOM.registerBtn.addEventListener("click", handleRegister);
+        DOM.showRegisterBtn.addEventListener("click", showRegisterScreen);
+        DOM.showLoginBtn.addEventListener("click", showAuthScreen);
+        DOM.logoutBtn.addEventListener("click", handleLogout);
+        DOM.gameLogoutBtn.addEventListener("click", handleLogout);
+        
+        DOM.startGameBtn.addEventListener("click", startGame);
+        DOM.backToMenuBtn.addEventListener("click", showGameMenu);
+        DOM.difficultyBtns.forEach(btn => {
+            btn.addEventListener("click", () => {
+                DOM.difficultyBtns.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                state.difficulty = btn.dataset.difficulty;
+            });
+        });
+        
+        DOM.submitBtn.addEventListener("click", checkAnswer);
+        DOM.newBtn.addEventListener("click", fetchNewPuzzle);
+        DOM.hintBtn.addEventListener("click", showHint);
+        DOM.tryAgainBtn.addEventListener("click", fetchNewPuzzle);
+        DOM.userAnswer.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") checkAnswer();
+        });
     }
 
-    function showResult(message, type) {
-        DOM.resultDiv.textContent = message;
-        DOM.resultDiv.className = 'message ' + type;
-        DOM.resultDiv.classList.remove('hidden');
+
+
+    function init() {
+        auth.onAuthStateChanged(user => {
+            if (user) {
+                state.currentUser = user;
+                logSession("auto-login");
+                trackActivity();
+                loadUserStats();
+                showGameMenu();
+            } else {
+                showAuthScreen();
+            }
+        });
+
+        initActivityTracking();
+        setupEventListeners();
+        
+        state.sampleImages.forEach(img => {
+            new Image().src = img.url;
+        });
     }
 
-    function clearResult() {
-        DOM.resultDiv.textContent = '';
-        DOM.resultDiv.className = 'message';
-        DOM.resultDiv.classList.add('hidden');
-    }
-
-    // Initialize the application
     init();
 })();
