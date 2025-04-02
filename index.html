@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Banana Math Puzzle Challenge</title>
+    <title>Math Challenge</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
@@ -11,10 +11,9 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-   
     <section class="container" id="auth-container">
         <header>
-            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h1>Math Challenge</h1>
             <h2>Login</h2>
         </header>
         <div class="auth-form" id="login-form">
@@ -22,9 +21,13 @@
                 <i class="fas fa-envelope"></i>
                 <input type="email" id="email" placeholder="Enter your email" required>
             </div>
-            <div class="input-with-icon">
+            <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
                 <input type="password" id="password" placeholder="Enter your password" required>
+                <i class="fas fa-eye toggle-password" id="toggle-login-password" tabindex="0" aria-label="Show password"></i>
+            </div>
+            <div class="forgot-password">
+                <a href="#" id="forgot-password-link">Forgot password?</a>
             </div>
             <div class="auth-buttons">
                 <button type="button" id="login-btn">
@@ -38,10 +41,9 @@
         <div id="auth-message" class="message"></div>
     </section>
 
-    
     <section class="container hidden" id="register-container">
         <header>
-            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h1>Math Challenge</h1>
             <h2>Register</h2>
         </header>
         <div class="auth-form" id="register-form">
@@ -49,13 +51,25 @@
                 <i class="fas fa-envelope"></i>
                 <input type="email" id="new-email" placeholder="Enter your email" required>
             </div>
-            <div class="input-with-icon">
+            <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
-                <input type="password" id="new-password" placeholder="Choose a password (min 6 chars)" required>
+                <input type="password" id="new-password" placeholder="Choose a password" required>
+                <i class="fas fa-eye toggle-password" id="toggle-register-password" tabindex="0" aria-label="Show password"></i>
             </div>
-            <div class="input-with-icon">
+            <div class="password-requirements">
+                <p>Password must contain:</p>
+                <ul>
+                    <li id="req-length">✓ 8+ characters</li>
+                    <li id="req-upper">✓ 1 uppercase letter</li>
+                    <li id="req-lower">✓ 1 lowercase letter</li>
+                    <li id="req-number">✓ 1 number</li>
+                    <li id="req-special">✓ 1 special character</li>
+                </ul>
+            </div>
+            <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
                 <input type="password" id="confirm-password" placeholder="Confirm your password" required>
+                <i class="fas fa-eye toggle-password" id="toggle-confirm-password" tabindex="0" aria-label="Show password"></i>
             </div>
             <div class="auth-buttons">
                 <button type="button" id="register-btn">
@@ -69,15 +83,40 @@
         <div id="register-message" class="message"></div>
     </section>
 
-   
     <section class="container hidden" id="game-menu-container">
-        <button type="button" id="logout-btn">
-            <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
+        <div class="user-profile">
+            <span id="user-avatar">
+                <i class="fas fa-user"></i>
+            </span>
+            <div class="dropdown-content hidden">
+                <button id="dropdown-logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
         <header>
-            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h1>Math Challenge</h1>
             <h2>Welcome, <span id="menu-current-user">Player</span>!</h2>
         </header>
+        
+        <div class="history-panel">
+            <h3>Your History</h3>
+            <div class="history-stats">
+                <div class="history-item">
+                    <span class="history-label">Last Score:</span>
+                    <span id="last-score" class="history-value">0</span>
+                </div>
+                <div class="history-item">
+                    <span class="history-label">Best Streak:</span>
+                    <span id="best-streak-history" class="history-value">0</span>
+                </div>
+                <div class="history-item">
+                    <span class="history-label">Games Played:</span>
+                    <span id="games-played" class="history-value">0</span>
+                </div>
+            </div>
+        </div>
+
         <div class="game-menu-content">
             <div class="user-stats">
                 <p><i class="fas fa-trophy"></i> High Score: <span id="high-score">0</span></p>
@@ -101,14 +140,33 @@
                 <i class="fas fa-play"></i> Start Game
             </button>
         </div>
+
+        <div class="leaderboard-container">
+            <h3>Leaderboard</h3>
+            <div class="leaderboard-tabs">
+                <button class="leaderboard-tab active" data-type="highScore">High Scores</button>
+                <button class="leaderboard-tab" data-type="bestStreak">Best Streaks</button>
+                <button class="leaderboard-tab" data-type="gamesPlayed">Most Active</button>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list">
+                <!-- Leaderboard items will be inserted here by JavaScript -->
+            </div>
+        </div>
     </section>
 
     <section class="container hidden" id="game-container">
-        <button type="button" id="game-logout-btn">
-            <i class="fas fa-sign-out-alt"></i> Logout
-        </button>
+        <div class="user-profile">
+            <span id="game-user-avatar">
+                <i class="fas fa-user"></i>
+            </span>
+            <div class="dropdown-content hidden">
+                <button id="game-dropdown-logout-btn">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
         <header>
-            <h1>🍌 Banana Math Challenge 🍌</h1>
+            <h1>Math Challenge</h1>
             <h2>Player: <span id="current-user">Player</span> - <span id="current-difficulty">Easy</span></h2>
         </header>
         <div class="game-content">
@@ -124,7 +182,7 @@
                 </div>
             </div>
             <div class="puzzle-container">
-                <img id="puzzle-image" alt="Banana Math Puzzle" style="display: none;">
+                <div id="math-problem" class="math-problem"></div>
                 <div id="loading" class="loading">
                     <i class="fas fa-spinner fa-spin"></i> Loading puzzle...
                 </div>
@@ -133,7 +191,7 @@
                 </div>
             </div>
             <div class="input-area">
-                <input type="number" id="user-answer" placeholder="Enter your answer" min="0" max="99">
+                <input type="number" id="user-answer" placeholder="Enter your answer" min="0" max="999">
                 <button type="button" id="submit-btn">
                     <i class="fas fa-check"></i> Submit
                 </button>
@@ -151,7 +209,7 @@
                 <p>Want to try again?</p>
                 <div class="button-container">
                     <button type="button" id="try-again-btn">
-                        <i class="fas fa-sync-alt"></i> New Puzzle
+                        <i class="fas fa-sync-alt"></i> Try Again
                     </button>
                     <button type="button" id="back-to-menu-btn">
                         <i class="fas fa-home"></i> Back to Menu
@@ -160,10 +218,6 @@
             </div>
         </div>
     </section>
-
-    <div id="session-warning" class="session-warning hidden">
-        <i class="fas fa-exclamation-circle"></i> Your session will expire in <span id="countdown">5:00</span>. Click anywhere to stay logged in.
-    </div>
 
     <script src="script.js"></script>
 </body>

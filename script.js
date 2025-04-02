@@ -28,15 +28,14 @@
         registerBtn: document.getElementById('register-btn'),
         showRegisterBtn: document.getElementById('show-register-btn'),
         showLoginBtn: document.getElementById('show-login-btn'),
+        forgotPasswordLink: document.getElementById('forgot-password-link'),
         menuCurrentUser: document.getElementById('menu-current-user'),
         highScore: document.getElementById('high-score'),
         bestStreak: document.getElementById('best-streak'),
         startGameBtn: document.getElementById('start-game-btn'),
-        logoutBtn: document.getElementById('logout-btn'),
-        gameLogoutBtn: document.getElementById('game-logout-btn'),
         currentUser: document.getElementById('current-user'),
         currentDifficulty: document.getElementById('current-difficulty'),
-        puzzleImage: document.getElementById('puzzle-image'),
+        mathProblem: document.getElementById('math-problem'),
         userAnswer: document.getElementById('user-answer'),
         submitBtn: document.getElementById('submit-btn'),
         newBtn: document.getElementById('new-btn'),
@@ -50,13 +49,32 @@
         tryAgainDiv: document.getElementById('try-again'),
         tryAgainBtn: document.getElementById('try-again-btn'),
         backToMenuBtn: document.getElementById('back-to-menu-btn'),
-        difficultyBtns: document.querySelectorAll('.difficulty-btn')
+        difficultyBtns: document.querySelectorAll('.difficulty-btn'),
+        toggleLoginPassword: document.getElementById('toggle-login-password'),
+        toggleRegisterPassword: document.getElementById('toggle-register-password'),
+        toggleConfirmPassword: document.getElementById('toggle-confirm-password'),
+        userAvatar: document.getElementById('user-avatar'),
+        gameUserAvatar: document.getElementById('game-user-avatar'),
+        dropdownLogoutBtn: document.getElementById('dropdown-logout-btn'),
+        gameDropdownLogoutBtn: document.getElementById('game-dropdown-logout-btn'),
+        dropdownContent: document.querySelector('.dropdown-content'),
+        gameDropdownContent: document.querySelector('#game-container .dropdown-content'),
+        lastScore: document.getElementById('last-score'),
+        bestStreakHistory: document.getElementById('best-streak-history'),
+        gamesPlayed: document.getElementById('games-played'),
+        leaderboardList: document.getElementById('leaderboard-list'),
+        leaderboardTabs: document.querySelectorAll('.leaderboard-tab'),
+        leaderboardUpdated: document.createElement('div')
     };
+
+    DOM.leaderboardUpdated.className = 'leaderboard-updated';
+    document.querySelector('.leaderboard-container').appendChild(DOM.leaderboardUpdated);
 
     const state = {
         currentUser: null,
         score: 0,
         highScore: 0,
+        streak: 0,
         bestStreak: 0,
         timer: null,
         timeLeft: 30,
@@ -67,63 +85,133 @@
             medium: { time: 30, points: 10, hintType: 'oddEven' },
             hard: { time: 15, points: 15, hintType: 'none' }
         },
-        sampleImages: [
-            { url: 'https://www.sanfoh.com/uob/banana/data/t1539acf2dc756aae70594758e7n97.png', solution: 7 },
-            { url: 'https://www.sanfoh.com/uob/banana/data/t1d0c782c2a6eb458e66bad332cn96.png', solution: 6 },
-            { url: 'https://www.sanfoh.com/uob/banana/data/t1fd81573c8d3fe70235a566b72n3.png', solution: 8 },
-            { url: 'https://www.sanfoh.com/uob/banana/data/t280481bed5d239d6be3f798dc5n57.png', solution: 5 },
-            { url: 'https://www.sanfoh.com/uob/banana/data/td395b9299083da2761ad6bde27n117.png', solution: 7 },
-            { url: 'https://www.sanfoh.com/uob/banana/data/tda960504e718609d6c2f28d7c2n54.png', solution: 4 }
-        ]
+        userHistory: {
+            lastScore: 0,
+            bestStreak: 0,
+            gamesPlayed: 0,
+            allScores: []
+        },
+        leaderboard: [],
+        leaderboardType: 'highScore',
+        currentProblem: null,
+        leaderboardListener: null,
+        retryCount: 0,
+        MAX_RETRIES: 3
     };
 
-    function showMessage(element, message, type) {
-        const icon = type === 'error' ? 'fas fa-exclamation-circle' : 
-                    type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
-        
-        element.innerHTML = `<i class="${icon}"></i> ${message}`;
-        element.className = `message ${type}`;
-        element.style.display = 'flex';
-        
-        setTimeout(() => {
-            element.style.opacity = '0';
+    async function fetchMathProblem() {
+        try {
+            DOM.loadingDiv.classList.remove("hidden");
+            DOM.errorDiv.classList.add("hidden");
+            DOM.mathProblem.style.display = "none";
+            DOM.resultDiv.classList.add("hidden");
+            DOM.tryAgainDiv.classList.add("hidden");
+            DOM.userAnswer.value = "";
+            
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            const response = await fetch('https://marcconrad.com/uob/banana/api.php?out=json', {
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.question || !data.solution) {
+                throw new Error("Invalid problem data from API");
+            }
+            
+            state.currentProblem = {
+                question: data.question,
+                solution: data.solution
+            };
+            
+            DOM.mathProblem.innerHTML = `
+                <div class="problem-image-container">
+                    <img src="${state.currentProblem.question}" 
+                         alt="Math problem" 
+                         onload="this.style.opacity=1" 
+                         style="opacity:0; transition: opacity 0.3s ease"
+                         onerror="this.onerror=null;this.src='fallback-image.png';">
+                </div>
+            `;
+            DOM.mathProblem.style.display = "block";
+            DOM.loadingDiv.classList.add("hidden");
+            state.retryCount = 0;
+            
             setTimeout(() => {
-                element.style.display = 'none';
-                element.style.opacity = '1';
+                DOM.userAnswer.focus();
             }, 300);
-        }, 3000);
-    }
-
-    function showAuthScreen() {
-        DOM.authContainer.classList.remove("hidden");
-        DOM.registerContainer.classList.add("hidden");
-        DOM.gameMenuContainer.classList.add("hidden");
-        DOM.gameContainer.classList.add("hidden");
-        DOM.email.focus();
-    }
-
-    function showRegisterScreen() {
-        DOM.authContainer.classList.add("hidden");
-        DOM.registerContainer.classList.remove("hidden");
-        DOM.gameMenuContainer.classList.add("hidden");
-        DOM.gameContainer.classList.add("hidden");
-        DOM.newEmail.focus();
-    }
-
-    function showGameMenu() {
-        if (!state.currentUser) {
-            showAuthScreen();
-            return;
+        } catch (error) {
+            console.error("Error generating puzzle:", error);
+            DOM.loadingDiv.classList.add("hidden");
+            DOM.errorDiv.classList.remove("hidden");
+            DOM.errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${error.message || "Failed to load puzzle. Please try again."}`;
+            
+            if (state.retryCount < state.MAX_RETRIES) {
+                state.retryCount++;
+                const delay = Math.pow(2, state.retryCount) * 1000;
+                setTimeout(fetchNewPuzzle, delay);
+                return;
+            }
+            state.retryCount = 0;
         }
+    }
+
+    function validatePassword(password) {
+        const requirements = {
+            length: password.length >= 8,
+            upper: /[A-Z]/.test(password),
+            lower: /[a-z]/.test(password),
+            number: /[0-9]/.test(password),
+            special: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+        };
         
-        DOM.authContainer.classList.add("hidden");
-        DOM.registerContainer.classList.add("hidden");
-        DOM.gameMenuContainer.classList.remove("hidden");
-        DOM.gameContainer.classList.add("hidden");
+        document.getElementById('req-length').className = requirements.length ? 'valid' : 'invalid';
+        document.getElementById('req-upper').className = requirements.upper ? 'valid' : 'invalid';
+        document.getElementById('req-lower').className = requirements.lower ? 'valid' : 'invalid';
+        document.getElementById('req-number').className = requirements.number ? 'valid' : 'invalid';
+        document.getElementById('req-special').className = requirements.special ? 'valid' : 'invalid';
         
-        DOM.menuCurrentUser.textContent = state.currentUser.email;
-        DOM.highScore.textContent = state.highScore;
-        DOM.bestStreak.textContent = state.bestStreak;
+        return Object.values(requirements).every(Boolean);
+    }
+
+    function setupPasswordToggle() {
+        DOM.toggleLoginPassword.addEventListener('click', () => {
+            togglePasswordVisibility(DOM.password, DOM.toggleLoginPassword);
+        });
+
+        DOM.toggleRegisterPassword.addEventListener('click', () => {
+            togglePasswordVisibility(DOM.newPassword, DOM.toggleRegisterPassword);
+        });
+
+        DOM.toggleConfirmPassword.addEventListener('click', () => {
+            togglePasswordVisibility(DOM.confirmPassword, DOM.toggleConfirmPassword);
+        });
+
+        [DOM.toggleLoginPassword, DOM.toggleRegisterPassword, DOM.toggleConfirmPassword].forEach(icon => {
+            icon.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    const inputField = icon.closest('.password-field').querySelector('input');
+                    togglePasswordVisibility(inputField, icon);
+                }
+            });
+        });
+    }
+
+    function togglePasswordVisibility(input, icon) {
+        const type = input.getAttribute('type') === 'password' ? 'text' : 'password';
+        input.setAttribute('type', type);
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+        icon.setAttribute('aria-label', type === 'password' ? 'Show password' : 'Hide password');
     }
 
     async function handleLogin() {
@@ -135,18 +223,22 @@
             return;
         }
 
+        if (password.length < 8) {
+            showMessage(DOM.authMessage, "Invalid password format. Please reset your password.", "error");
+            return;
+        }
+        
         DOM.loginBtn.disabled = true;
         DOM.loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
 
         try {
-            // Set persistence to SESSION to prevent automatic login
-            await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
-            
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
             state.currentUser = userCredential.user;
             
             showMessage(DOM.authMessage, "Login successful!", "success");
             await loadUserStats();
+            await loadUserHistory();
+            await updateLeaderboard();
             showGameMenu();
         } catch (error) {
             showMessage(DOM.authMessage, handleFirebaseError(error), "error");
@@ -160,27 +252,28 @@
         const email = DOM.newEmail.value.trim();
         const password = DOM.newPassword.value.trim();
         const confirmPassword = DOM.confirmPassword.value.trim();
-
+    
         if (!email || !password || !confirmPassword) {
             showMessage(DOM.registerMessage, "Please fill all fields.", "error");
             return;
         }
-
+    
         if (password !== confirmPassword) {
             showMessage(DOM.registerMessage, "Passwords don't match.", "error");
             return;
         }
-
-        if (password.length < 6) {
-            showMessage(DOM.registerMessage, "Password must be at least 6 characters.", "error");
+    
+        if (!validatePassword(password)) {
+            showMessage(DOM.registerMessage, "Password doesn't meet requirements.", "error");
             return;
         }
-
+    
         DOM.registerBtn.disabled = true;
         DOM.registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Registering...';
-
+    
         try {
             const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            
             await db.collection("users").doc(userCredential.user.uid).set({
                 email: email,
                 highScore: 0,
@@ -188,9 +281,16 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
+            await auth.signOut();
+            
             showMessage(DOM.registerMessage, "Registration successful! Please login.", "success");
-            DOM.email.value = email;
+            
+            DOM.newEmail.value = "";
+            DOM.newPassword.value = "";
+            DOM.confirmPassword.value = "";
+            
             showAuthScreen();
+            
         } catch (error) {
             showMessage(DOM.registerMessage, handleFirebaseError(error), "error");
         } finally {
@@ -203,9 +303,33 @@
         try {
             await auth.signOut();
             state.currentUser = null;
+            
+            state.score = 0;
+            state.streak = 0;
+            state.timeLeft = 30;
+            clearInterval(state.timer);
+            
+            DOM.scoreSpan.textContent = "0";
+            DOM.streakSpan.textContent = "0";
+            DOM.timerSpan.textContent = "30";
+            
             showAuthScreen();
+            showMessage(DOM.authMessage, "Logged out successfully", "success");
         } catch (error) {
             console.error("Logout error:", error);
+            showMessage(DOM.authMessage, "Logout failed. Please try again.", "error");
+        }
+    }
+
+    async function handlePasswordReset() {
+        const email = prompt("Please enter your email address to reset your password:");
+        if (!email) return;
+        
+        try {
+            await auth.sendPasswordResetEmail(email);
+            showMessage(DOM.authMessage, `Password reset email sent to ${email}`, "success");
+        } catch (error) {
+            showMessage(DOM.authMessage, handleFirebaseError(error), "error");
         }
     }
 
@@ -213,10 +337,10 @@
         const messages = {
             "auth/email-already-in-use": "Email already registered.",
             "auth/invalid-email": "Invalid email address.",
-            "auth/weak-password": "Password must be 6+ characters.",
+            "auth/weak-password": "Password must be at least 8 characters with uppercase, lowercase, number, and special character.",
             "auth/user-not-found": "Email not found.",
-            "auth/wrong-password": "Incorrect password.",
-            "auth/too-many-requests": "Too many attempts. Try again later."
+            "auth/wrong-password": "Incorrect password. Please try again or reset your password.",
+            "auth/too-many-requests": "Too many attempts. Account temporarily locked. Try again later or reset your password."
         };
         return messages[error.code] || "Authentication failed. Please try again.";
     }
@@ -245,11 +369,248 @@
         try {
             await db.collection("users").doc(state.currentUser.uid).update({
                 highScore: state.highScore,
-                bestStreak: state.bestStreak
+                bestStreak: state.bestStreak,
+                lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
             });
         } catch (error) {
             console.error("Error updating user stats:", error);
+            throw error;
         }
+    }
+
+    async function updateUserHistory(score) {
+        state.userHistory.lastScore = score;
+        state.userHistory.gamesPlayed++;
+        state.userHistory.allScores.push(score);
+        
+        if (state.streak > state.userHistory.bestStreak) {
+            state.userHistory.bestStreak = state.streak;
+        }
+
+        DOM.lastScore.textContent = state.userHistory.lastScore;
+        DOM.bestStreakHistory.textContent = state.userHistory.bestStreak;
+        DOM.gamesPlayed.textContent = state.userHistory.gamesPlayed;
+
+        if (state.currentUser) {
+            try {
+                await db.collection('userHistory').doc(state.currentUser.uid).set({
+                    lastScore: state.userHistory.lastScore,
+                    bestStreak: state.userHistory.bestStreak,
+                    gamesPlayed: state.userHistory.gamesPlayed,
+                    allScores: firebase.firestore.FieldValue.arrayUnion(score),
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+            } catch (error) {
+                console.error("Error updating user history:", error);
+                throw error;
+            }
+        }
+    }
+
+    async function loadUserHistory() {
+        if (!state.currentUser) return;
+
+        try {
+            const doc = await db.collection('userHistory').doc(state.currentUser.uid).get();
+            if (doc.exists) {
+                const data = doc.data();
+                state.userHistory = {
+                    lastScore: data.lastScore || 0,
+                    bestStreak: data.bestStreak || 0,
+                    gamesPlayed: data.gamesPlayed || 0,
+                    allScores: data.allScores || []
+                };
+
+                DOM.lastScore.textContent = state.userHistory.lastScore;
+                DOM.bestStreakHistory.textContent = state.userHistory.bestStreak;
+                DOM.gamesPlayed.textContent = state.userHistory.gamesPlayed;
+            }
+        } catch (error) {
+            console.error("Error loading user history:", error);
+        }
+    }
+
+    async function updateLeaderboard() {
+        try {
+            if (state.currentUser) {
+                const batch = db.batch();
+                
+                const userRef = db.collection("users").doc(state.currentUser.uid);
+                batch.update(userRef, {
+                    highScore: state.highScore,
+                    bestStreak: state.bestStreak,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                });
+                
+                const leaderboardRef = db.collection('leaderboard').doc(state.currentUser.uid);
+                batch.set(leaderboardRef, {
+                    name: state.currentUser.email.split('@')[0],
+                    highScore: state.highScore,
+                    bestStreak: state.bestStreak,
+                    gamesPlayed: state.userHistory.gamesPlayed,
+                    lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true });
+                
+                await batch.commit();
+                await renderLeaderboard();
+            }
+        } catch (error) {
+            console.error("Error updating leaderboard:", error);
+            setTimeout(updateLeaderboard, 2000);
+        }
+    }
+
+    async function renderLeaderboard() {
+        try {
+            DOM.leaderboardList.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading leaderboard...</div>';
+            
+            let query;
+            switch(state.leaderboardType) {
+                case 'bestStreak':
+                    query = db.collection('leaderboard')
+                        .orderBy('bestStreak', 'desc')
+                        .orderBy('highScore', 'desc')
+                        .limit(10);
+                    break;
+                case 'gamesPlayed':
+                    query = db.collection('leaderboard')
+                        .orderBy('gamesPlayed', 'desc')
+                        .orderBy('highScore', 'desc')
+                        .limit(10);
+                    break;
+                default:
+                    query = db.collection('leaderboard')
+                        .orderBy('highScore', 'desc')
+                        .limit(10);
+            }
+
+            const snapshot = await query.get();
+            DOM.leaderboardList.innerHTML = '';
+            
+            if (snapshot.empty) {
+                DOM.leaderboardList.innerHTML = '<div class="message info">No leaderboard data available yet</div>';
+                return;
+            }
+
+            snapshot.forEach((doc, index) => {
+                const player = { id: doc.id, ...doc.data() };
+                const leaderboardItem = document.createElement('div');
+                leaderboardItem.className = `leaderboard-item ${
+                    state.currentUser && player.id === state.currentUser.uid ? 'you' : ''
+                }`;
+                
+                const displayValue = state.leaderboardType === 'highScore' ? player.highScore.toLocaleString() :
+                                    state.leaderboardType === 'bestStreak' ? player.bestStreak.toLocaleString() :
+                                    player.gamesPlayed.toLocaleString();
+                
+                leaderboardItem.innerHTML = `
+                    <span class="leaderboard-rank">${index + 1}</span>
+                    <div class="player-info">
+                        <div class="player-avatar">${player.name.charAt(0).toUpperCase()}</div>
+                        <span class="player-name">${player.name}</span>
+                    </div>
+                    <span class="player-score">${displayValue}</span>
+                `;
+                
+                DOM.leaderboardList.appendChild(leaderboardItem);
+            });
+
+            const now = new Date();
+            DOM.leaderboardUpdated.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+
+        } catch (error) {
+            console.error("Error rendering leaderboard:", error);
+            DOM.leaderboardList.innerHTML = '<div class="message error"><i class="fas fa-exclamation-triangle"></i> Failed to load leaderboard</div>';
+        }
+    }
+
+    function setupLeaderboardListener() {
+        if (state.leaderboardListener) {
+            state.leaderboardListener();
+        }
+        
+        let query;
+        switch(state.leaderboardType) {
+            case 'bestStreak':
+                query = db.collection('leaderboard')
+                    .orderBy('bestStreak', 'desc')
+                    .orderBy('highScore', 'desc')
+                    .limit(10);
+                break;
+            case 'gamesPlayed':
+                query = db.collection('leaderboard')
+                    .orderBy('gamesPlayed', 'desc')
+                    .orderBy('highScore', 'desc')
+                    .limit(10);
+                break;
+            default:
+                query = db.collection('leaderboard')
+                    .orderBy('highScore', 'desc')
+                    .limit(10);
+        }
+
+        state.leaderboardListener = query.onSnapshot(snapshot => {
+            renderLeaderboard();
+        }, error => {
+            console.error("Leaderboard listener error:", error);
+        });
+    }
+
+    function showMessage(element, message, type) {
+        const icon = type === 'error' ? 'fas fa-exclamation-circle' : 
+                    type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
+        
+        element.innerHTML = `<i class="${icon}"></i> ${message}`;
+        element.className = `message ${type}`;
+        element.style.display = 'flex';
+        
+        setTimeout(() => {
+            element.style.opacity = '0';
+            setTimeout(() => {
+                element.style.display = 'none';
+                element.style.opacity = '1';
+            }, 300);
+        }, 3000);
+    }
+
+    function showAuthScreen() {
+        DOM.email.value = "";
+        DOM.password.value = "";
+        DOM.authContainer.classList.remove("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.email.focus();
+    }
+
+    function showRegisterScreen() {
+        DOM.newEmail.value = "";
+        DOM.newPassword.value = "";
+        DOM.confirmPassword.value = "";
+        DOM.registerMessage.textContent = "";
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.remove("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.newEmail.focus();
+    }
+
+    function showGameMenu() {
+        if (!state.currentUser) {
+            showAuthScreen();
+            return;
+        }
+        
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.remove("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        
+        DOM.menuCurrentUser.textContent = state.currentUser.email;
+        DOM.highScore.textContent = state.highScore;
+        DOM.bestStreak.textContent = state.bestStreak;
+        
+        setupLeaderboardListener();
     }
 
     function startGame() {
@@ -303,38 +664,21 @@
         
         if (state.score > state.highScore) {
             state.highScore = state.score;
-            updateUserStats();
         }
+        if (state.streak > state.bestStreak) {
+            state.bestStreak = state.streak;
+        }
+        
+        updateUserStats()
+            .then(() => updateUserHistory(state.score))
+            .then(() => updateLeaderboard())
+            .catch(error => {
+                console.error("Error updating game results:", error);
+            });
     }
 
-    async function fetchNewPuzzle() {
-        DOM.loadingDiv.classList.remove("hidden");
-        DOM.errorDiv.classList.add("hidden");
-        DOM.puzzleImage.style.display = "none";
-        DOM.resultDiv.classList.add("hidden");
-        DOM.tryAgainDiv.classList.add("hidden");
-        DOM.userAnswer.value = "";
-        DOM.userAnswer.focus();
-        
-        try {
-            state.timeLeft = state.difficultySettings[state.difficulty].time;
-            DOM.timerSpan.textContent = state.timeLeft;
-            
-            const randomIndex = Math.floor(Math.random() * state.sampleImages.length);
-            const puzzle = state.sampleImages[randomIndex];
-            
-            state.solution = puzzle.solution;
-            
-            DOM.puzzleImage.src = puzzle.url;
-            DOM.puzzleImage.onload = () => {
-                DOM.loadingDiv.classList.add("hidden");
-                DOM.puzzleImage.style.display = "block";
-            };
-        } catch (error) {
-            console.error("Error fetching puzzle:", error);
-            DOM.loadingDiv.classList.add("hidden");
-            DOM.errorDiv.classList.remove("hidden");
-        }
+    function fetchNewPuzzle() {
+        fetchMathProblem();
     }
 
     function checkAnswer() {
@@ -347,14 +691,13 @@
         
         clearInterval(state.timer);
         
-        if (userAnswer === state.solution) {
+        if (userAnswer === state.currentProblem.solution) {
             const points = state.difficultySettings[state.difficulty].points;
             state.score += points;
             state.streak++;
             
             if (state.streak > state.bestStreak) {
                 state.bestStreak = state.streak;
-                updateUserStats();
             }
             
             DOM.scoreSpan.textContent = state.score;
@@ -364,18 +707,13 @@
             DOM.resultDiv.className = "message correct";
             DOM.resultDiv.classList.remove("hidden");
             
-            if (state.score > state.highScore) {
-                state.highScore = state.score;
-                updateUserStats();
-            }
-            
             setTimeout(fetchNewPuzzle, 1500);
             startTimer();
         } else {
             state.streak = 0;
             DOM.streakSpan.textContent = state.streak;
             
-            DOM.resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> Incorrect! The answer was ${state.solution}`;
+            DOM.resultDiv.innerHTML = `<i class="fas fa-times-circle"></i> Incorrect! The answer was ${state.currentProblem.solution}`;
             DOM.resultDiv.className = "message incorrect";
             DOM.resultDiv.classList.remove("hidden");
             DOM.tryAgainDiv.classList.remove("hidden");
@@ -387,12 +725,12 @@
         const hintType = state.difficultySettings[state.difficulty].hintType;
         
         if (hintType === 'range') {
-            const range = 3;
-            const lower = Math.max(0, state.solution - range);
-            const upper = state.solution + range;
+            const range = Math.max(3, Math.floor(state.currentProblem.solution * 0.3));
+            const lower = Math.max(0, state.currentProblem.solution - range);
+            const upper = state.currentProblem.solution + range;
             hint = `The answer is between ${lower} and ${upper}`;
         } else if (hintType === 'oddEven') {
-            hint = `The answer is ${state.solution % 2 === 0 ? 'even' : 'odd'}`;
+            hint = `The answer is ${state.currentProblem.solution % 2 === 0 ? 'even' : 'odd'}`;
         } else {
             hint = "No hints available for this difficulty";
         }
@@ -405,8 +743,10 @@
         DOM.registerBtn.addEventListener("click", handleRegister);
         DOM.showRegisterBtn.addEventListener("click", showRegisterScreen);
         DOM.showLoginBtn.addEventListener("click", showAuthScreen);
-        DOM.logoutBtn.addEventListener("click", handleLogout);
-        DOM.gameLogoutBtn.addEventListener("click", handleLogout);
+        DOM.forgotPasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            handlePasswordReset();
+        });
         
         DOM.startGameBtn.addEventListener("click", startGame);
         DOM.backToMenuBtn.addEventListener("click", showGameMenu);
@@ -425,36 +765,64 @@
         DOM.userAnswer.addEventListener("keypress", (e) => {
             if (e.key === "Enter") checkAnswer();
         });
+
+        DOM.userAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            DOM.dropdownContent.classList.toggle('hidden');
+        });
+
+        DOM.gameUserAvatar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            DOM.gameDropdownContent.classList.toggle('hidden');
+        });
+
+        DOM.dropdownLogoutBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleLogout();
+        });
+
+        DOM.gameDropdownLogoutBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            handleLogout();
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.user-profile')) {
+                DOM.dropdownContent.classList.add('hidden');
+                DOM.gameDropdownContent.classList.add('hidden');
+            }
+        });
+
+        DOM.newPassword.addEventListener('input', (e) => {
+            validatePassword(e.target.value);
+        });
+
+        DOM.leaderboardTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                DOM.leaderboardTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                state.leaderboardType = tab.dataset.type;
+                setupLeaderboardListener();
+            });
+        });
+
+        setupPasswordToggle();
     }
 
-    async function init() {
-        // Force sign out any existing session to ensure fresh login
-        try {
-            await auth.signOut();
-        } catch (error) {
-            console.log("No user to sign out");
-        }
-
-        // Show login screen first
+    function init() {
         showAuthScreen();
-
-        // Set up auth state listener
+        
         auth.onAuthStateChanged(user => {
             if (user) {
-                // Only process if user explicitly logged in
                 state.currentUser = user;
                 loadUserStats();
-                showGameMenu();
+                loadUserHistory();
+                updateLeaderboard();
+                setupLeaderboardListener();
             }
-            // Otherwise keep showing login screen
         });
 
         setupEventListeners();
-        
-        // Preload images
-        state.sampleImages.forEach(img => {
-            new Image().src = img.url;
-        });
     }
 
     init();
