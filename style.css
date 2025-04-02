@@ -1,5 +1,4 @@
 :root {
-
     --primary: #FFC107;
     --primary-dark: #FFA000;
     --secondary: #FF9800;
@@ -12,19 +11,16 @@
     --light-gray: #eeeeee;
     --medium-gray: #dddddd;
     
-
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
     
-
     --spacing-xs: 4px;
     --spacing-sm: 8px;
     --spacing-md: 16px;
     --spacing-lg: 24px;
     --spacing-xl: 32px;
     
-   
     --font-sm: 0.875rem;
     --font-md: 1rem;
     --font-lg: 1.25rem;
@@ -60,7 +56,6 @@ body {
     background-position: 0 0, 10px 10px;
 }
 
-
 .container {
     background-color: var(--white);
     border-radius: var(--border-radius-xl);
@@ -70,6 +65,7 @@ body {
     padding: var(--spacing-lg);
     position: relative;
     transition: all 0.3s ease;
+    animation: fadeIn 0.5s ease;
 }
 
 .container:hover {
@@ -79,7 +75,6 @@ body {
 .hidden {
     display: none !important;
 }
-
 
 header {
     text-align: center;
@@ -106,7 +101,6 @@ h3 {
     margin-bottom: var(--spacing-sm);
     text-align: center;
 }
-
 
 .auth-form {
     display: flex;
@@ -145,17 +139,6 @@ h3 {
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.2);
 }
-
-.remember-me {
-    margin: 10px 0;
-    display: flex;
-    align-items: center;
-}
-
-.remember-me input {
-    margin-right: 8px;
-}
-
 
 button {
     background-color: var(--primary);
@@ -196,8 +179,8 @@ button:disabled {
     display: flex;
     gap: var(--spacing-md);
     margin-top: var(--spacing-md);
+    width: 100%;
 }
-
 
 .message {
     margin-top: var(--spacing-md);
@@ -380,7 +363,6 @@ button:disabled {
     margin-top: var(--spacing-md);
 }
 
-
 .loading {
     text-align: center;
     color: var(--light-text);
@@ -398,7 +380,6 @@ button:disabled {
 .error i {
     margin-right: 8px;
 }
-
 
 .session-warning {
     position: fixed;
@@ -426,7 +407,6 @@ button:disabled {
     50% { opacity: 0.7; }
     100% { opacity: 1; }
 }
-
 
 #start-game-btn {
     padding: var(--spacing-md) var(--spacing-xl);
@@ -489,10 +469,6 @@ button:disabled {
     color: var(--wrong);
     font-weight: bold;
     animation: fadeInSlide 0.5s ease;
-}
-
-.container {
-    animation: fadeIn 0.5s ease;
 }
 
 @keyframes fadeIn {

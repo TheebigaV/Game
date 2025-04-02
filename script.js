@@ -50,9 +50,6 @@
         tryAgainDiv: document.getElementById('try-again'),
         tryAgainBtn: document.getElementById('try-again-btn'),
         backToMenuBtn: document.getElementById('back-to-menu-btn'),
-        rememberMe: document.getElementById('remember-me'),
-        sessionWarning: document.getElementById('session-warning'),
-        countdown: document.getElementById('countdown'),
         difficultyBtns: document.querySelectorAll('.difficulty-btn')
     };
 
@@ -60,15 +57,11 @@
         currentUser: null,
         score: 0,
         highScore: 0,
-        streak: 0,
         bestStreak: 0,
         timer: null,
         timeLeft: 30,
         solution: null,
         difficulty: 'easy',
-        inactivityTimer: null,
-        warningTimer: null,
-        countdownInterval: null,
         difficultySettings: {
             easy: { time: 45, points: 5, hintType: 'range' },
             medium: { time: 30, points: 10, hintType: 'oddEven' },
@@ -81,83 +74,61 @@
             { url: 'https://www.sanfoh.com/uob/banana/data/t280481bed5d239d6be3f798dc5n57.png', solution: 5 },
             { url: 'https://www.sanfoh.com/uob/banana/data/td395b9299083da2761ad6bde27n117.png', solution: 7 },
             { url: 'https://www.sanfoh.com/uob/banana/data/tda960504e718609d6c2f28d7c2n54.png', solution: 4 }
-        ],
-        apiUrl: 'https://marcconrad.com/uob/banana/api.php',
-        currentPuzzle: null,
-        previousSolution: null
+        ]
     };
 
-
-    async function setAuthPersistence(remember) {
-        try {
-            const persistence = remember ? 
-                firebase.auth.Auth.Persistence.LOCAL : 
-                firebase.auth.Auth.Persistence.SESSION;
-            
-            await auth.setPersistence(persistence);
-            return true;
-        } catch (error) {
-            console.error("Persistence error:", error);
-            return false;
-        }
-    }
-
-    function trackActivity() {
-        clearTimeout(state.inactivityTimer);
-        clearTimeout(state.warningTimer);
-        clearInterval(state.countdownInterval);
-        DOM.sessionWarning.classList.add("hidden");
-
-        state.inactivityTimer = setTimeout(() => {
-            handleLogout();
-            alert("You were logged out due to inactivity.");
-        }, 30 * 60 * 1000);
-
-        state.warningTimer = setTimeout(() => {
-            DOM.sessionWarning.classList.remove("hidden");
-            startCountdown(5 * 60);
-        }, 25 * 60 * 1000);
-    }
-
-    function startCountdown(seconds) {
-        let remaining = seconds;
-        updateCountdownDisplay(remaining);
-
-        state.countdownInterval = setInterval(() => {
-            remaining--;
-            updateCountdownDisplay(remaining);
-            if (remaining <= 0) clearInterval(state.countdownInterval);
-        }, 1000);
-    }
-
-    function updateCountdownDisplay(seconds) {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        DOM.countdown.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
-    }
-
-    async function logSession(action) {
-        if (!state.currentUser) return;
+    function showMessage(element, message, type) {
+        const icon = type === 'error' ? 'fas fa-exclamation-circle' : 
+                    type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
         
-        await db.collection("sessions").doc(state.currentUser.uid).set({
-            email: state.currentUser.email,
-            lastActive: firebase.firestore.FieldValue.serverTimestamp(),
-            action: action,
-            device: navigator.userAgent
-        }, { merge: true });
+        element.innerHTML = `<i class="${icon}"></i> ${message}`;
+        element.className = `message ${type}`;
+        element.style.display = 'flex';
+        
+        setTimeout(() => {
+            element.style.opacity = '0';
+            setTimeout(() => {
+                element.style.display = 'none';
+                element.style.opacity = '1';
+            }, 300);
+        }, 3000);
     }
 
-    function initActivityTracking() {
-        ["mousemove", "keydown", "click", "scroll"].forEach(event => {
-            window.addEventListener(event, trackActivity);
-        });
+    function showAuthScreen() {
+        DOM.authContainer.classList.remove("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.email.focus();
     }
 
+    function showRegisterScreen() {
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.remove("hidden");
+        DOM.gameMenuContainer.classList.add("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        DOM.newEmail.focus();
+    }
+
+    function showGameMenu() {
+        if (!state.currentUser) {
+            showAuthScreen();
+            return;
+        }
+        
+        DOM.authContainer.classList.add("hidden");
+        DOM.registerContainer.classList.add("hidden");
+        DOM.gameMenuContainer.classList.remove("hidden");
+        DOM.gameContainer.classList.add("hidden");
+        
+        DOM.menuCurrentUser.textContent = state.currentUser.email;
+        DOM.highScore.textContent = state.highScore;
+        DOM.bestStreak.textContent = state.bestStreak;
+    }
 
     async function handleLogin() {
         const email = DOM.email.value.trim();
         const password = DOM.password.value.trim();
-        const rememberMe = DOM.rememberMe.checked;
 
         if (!email || !password) {
             showMessage(DOM.authMessage, "Please enter email and password.", "error");
@@ -168,16 +139,11 @@
         DOM.loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Logging in...';
 
         try {
-            const persistenceSet = await setAuthPersistence(rememberMe);
-            if (!persistenceSet) {
-                throw new Error("Failed to set authentication persistence");
-            }
-
+            // Set persistence to SESSION to prevent automatic login
+            await auth.setPersistence(firebase.auth.Auth.Persistence.SESSION);
+            
             const userCredential = await auth.signInWithEmailAndPassword(email, password);
             state.currentUser = userCredential.user;
-            
-            await logSession("login");
-            trackActivity();
             
             showMessage(DOM.authMessage, "Login successful!", "success");
             await loadUserStats();
@@ -222,12 +188,9 @@
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
 
-            DOM.newEmail.value = "";
-            DOM.newPassword.value = "";
-            DOM.confirmPassword.value = "";
+            showMessage(DOM.registerMessage, "Registration successful! Please login.", "success");
+            DOM.email.value = email;
             showAuthScreen();
-            showMessage(DOM.authMessage, "Registration successful! Please login.", "success");
-            
         } catch (error) {
             showMessage(DOM.registerMessage, handleFirebaseError(error), "error");
         } finally {
@@ -237,12 +200,7 @@
     }
 
     async function handleLogout() {
-        clearTimeout(state.inactivityTimer);
-        clearTimeout(state.warningTimer);
-        clearInterval(state.countdownInterval);
-
         try {
-            await logSession("logout");
             await auth.signOut();
             state.currentUser = null;
             showAuthScreen();
@@ -262,7 +220,6 @@
         };
         return messages[error.code] || "Authentication failed. Please try again.";
     }
-
 
     async function loadUserStats() {
         if (!state.currentUser) return;
@@ -294,64 +251,6 @@
             console.error("Error updating user stats:", error);
         }
     }
-
-
-
-    function showMessage(element, message, type) {
-        const icon = type === 'error' ? 'fas fa-exclamation-circle' : 
-                    type === 'success' ? 'fas fa-check-circle' : 'fas fa-info-circle';
-        
-        element.innerHTML = `<i class="${icon}"></i> ${message}`;
-        element.className = `message ${type}`;
-        element.style.display = 'flex';
-        
-        setTimeout(() => {
-            element.style.opacity = '0';
-            setTimeout(() => {
-                element.style.display = 'none';
-                element.style.opacity = '1';
-            }, 300);
-        }, 3000);
-    }
-
-    function showAuthScreen() {
-        DOM.email.value = "";
-        DOM.password.value = "";
-        DOM.authContainer.classList.remove("hidden");
-        DOM.registerContainer.classList.add("hidden");
-        DOM.gameMenuContainer.classList.add("hidden");
-        DOM.gameContainer.classList.add("hidden");
-        DOM.email.focus();
-    }
-
-    function showRegisterScreen() {
-        DOM.newEmail.value = "";
-        DOM.newPassword.value = "";
-        DOM.confirmPassword.value = "";
-        DOM.registerMessage.textContent = "";
-        DOM.authContainer.classList.add("hidden");
-        DOM.registerContainer.classList.remove("hidden");
-        DOM.gameMenuContainer.classList.add("hidden");
-        DOM.gameContainer.classList.add("hidden");
-        DOM.newEmail.focus();
-    }
-
-    function showGameMenu() {
-        if (!state.currentUser) {
-            showAuthScreen();
-            return;
-        }
-        
-        DOM.authContainer.classList.add("hidden");
-        DOM.registerContainer.classList.add("hidden");
-        DOM.gameMenuContainer.classList.remove("hidden");
-        DOM.gameContainer.classList.add("hidden");
-        
-        DOM.menuCurrentUser.textContent = state.currentUser.email;
-        DOM.highScore.textContent = state.highScore;
-        DOM.bestStreak.textContent = state.bestStreak;
-    }
-
 
     function startGame() {
         if (!state.currentUser) {
@@ -425,7 +324,6 @@
             const puzzle = state.sampleImages[randomIndex];
             
             state.solution = puzzle.solution;
-            state.currentPuzzle = puzzle;
             
             DOM.puzzleImage.src = puzzle.url;
             DOM.puzzleImage.onload = () => {
@@ -502,7 +400,6 @@
         showMessage(DOM.resultDiv, hint, "info");
     }
 
-
     function setupEventListeners() {
         DOM.loginBtn.addEventListener("click", handleLogin);
         DOM.registerBtn.addEventListener("click", handleRegister);
@@ -530,24 +427,31 @@
         });
     }
 
+    async function init() {
+        // Force sign out any existing session to ensure fresh login
+        try {
+            await auth.signOut();
+        } catch (error) {
+            console.log("No user to sign out");
+        }
 
+        // Show login screen first
+        showAuthScreen();
 
-    function init() {
+        // Set up auth state listener
         auth.onAuthStateChanged(user => {
             if (user) {
+                // Only process if user explicitly logged in
                 state.currentUser = user;
-                logSession("auto-login");
-                trackActivity();
                 loadUserStats();
                 showGameMenu();
-            } else {
-                showAuthScreen();
             }
+            // Otherwise keep showing login screen
         });
 
-        initActivityTracking();
         setupEventListeners();
         
+        // Preload images
         state.sampleImages.forEach(img => {
             new Image().src = img.url;
         });
