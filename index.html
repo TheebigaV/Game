@@ -9,11 +9,15 @@
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.0/firebase-firestore-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <section class="container" id="auth-container">
+        <button type="button" id="auth-theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
         <header>
-            <h1>Math Challenge</h1>
+            <h1>Math Challenge Game</h1>
             <h2>Login</h2>
         </header>
         <div class="auth-form" id="login-form">
@@ -24,7 +28,9 @@
             <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
                 <input type="password" id="password" placeholder="Enter your password" required>
-                <i class="fas fa-eye toggle-password" id="toggle-login-password" tabindex="0" aria-label="Show password"></i>
+                <button type="button" class="toggle-password" id="toggle-login-password" tabindex="0" aria-label="Show password">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
             <div class="forgot-password">
                 <a href="#" id="forgot-password-link">Forgot password?</a>
@@ -42,6 +48,9 @@
     </section>
 
     <section class="container hidden" id="register-container">
+        <button type="button" id="register-theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
         <header>
             <h1>Math Challenge</h1>
             <h2>Register</h2>
@@ -54,7 +63,9 @@
             <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
                 <input type="password" id="new-password" placeholder="Choose a password" required>
-                <i class="fas fa-eye toggle-password" id="toggle-register-password" tabindex="0" aria-label="Show password"></i>
+                <button type="button" class="toggle-password" id="toggle-register-password" tabindex="0" aria-label="Show password">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
             <div class="password-requirements">
                 <p>Password must contain:</p>
@@ -69,7 +80,9 @@
             <div class="input-with-icon password-field">
                 <i class="fas fa-lock"></i>
                 <input type="password" id="confirm-password" placeholder="Confirm your password" required>
-                <i class="fas fa-eye toggle-password" id="toggle-confirm-password" tabindex="0" aria-label="Show password"></i>
+                <button type="button" class="toggle-password" id="toggle-confirm-password" tabindex="0" aria-label="Show password">
+                    <i class="fas fa-eye"></i>
+                </button>
             </div>
             <div class="auth-buttons">
                 <button type="button" id="register-btn">
@@ -84,12 +97,15 @@
     </section>
 
     <section class="container hidden" id="game-menu-container">
+        <button type="button" id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
         <div class="user-profile">
             <span id="user-avatar">
                 <i class="fas fa-user"></i>
             </span>
             <div class="dropdown-content hidden">
-                <button id="dropdown-logout-btn">
+                <button type="button" id="dropdown-logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
@@ -126,13 +142,37 @@
                 <h3>Select Difficulty</h3>
                 <div class="difficulty-buttons">
                     <button type="button" class="difficulty-btn easy active" data-difficulty="easy">
-                        <i class="fas fa-smile"></i> Easy
+                        <div class="difficulty-header">
+                            <i class="fas fa-smile"></i> 
+                            <span>Easy</span>
+                        </div>
+                        <div class="difficulty-details">
+                            <p><i class="fas fa-clock"></i> 45s</p>
+                            <p><i class="fas fa-star"></i> +5 pts</p>
+                            <p><i class="fas fa-lightbulb"></i> Range hint</p>
+                        </div>
                     </button>
                     <button type="button" class="difficulty-btn medium" data-difficulty="medium">
-                        <i class="fas fa-meh"></i> Medium
+                        <div class="difficulty-header">
+                            <i class="fas fa-meh"></i> 
+                            <span>Medium</span>
+                        </div>
+                        <div class="difficulty-details">
+                            <p><i class="fas fa-clock"></i> 30s</p>
+                            <p><i class="fas fa-star"></i> +10 pts</p>
+                            <p><i class="fas fa-lightbulb"></i> Odd/Even</p>
+                        </div>
                     </button>
                     <button type="button" class="difficulty-btn hard" data-difficulty="hard">
-                        <i class="fas fa-frown"></i> Hard
+                        <div class="difficulty-header">
+                            <i class="fas fa-frown"></i> 
+                            <span>Hard</span>
+                        </div>
+                        <div class="difficulty-details">
+                            <p><i class="fas fa-clock"></i> 15s</p>
+                            <p><i class="fas fa-star"></i> +15 pts</p>
+                            <p><i class="fas fa-lightbulb"></i> No hints</p>
+                        </div>
                     </button>
                 </div>
             </div>
@@ -144,23 +184,51 @@
         <div class="leaderboard-container">
             <h3>Leaderboard</h3>
             <div class="leaderboard-tabs">
-                <button class="leaderboard-tab active" data-type="highScore">High Scores</button>
-                <button class="leaderboard-tab" data-type="bestStreak">Best Streaks</button>
-                <button class="leaderboard-tab" data-type="gamesPlayed">Most Active</button>
+                <button type="button" class="leaderboard-tab active" data-type="highScore">High Scores</button>
+                <button type="button" class="leaderboard-tab" data-type="bestStreak">Best Streaks</button>
+                <button type="button" class="leaderboard-tab" data-type="gamesPlayed">Most Active</button>
             </div>
+            
             <div id="leaderboard-list" class="leaderboard-list">
-                <!-- Leaderboard items will be inserted here by JavaScript -->
+                <div class="leaderboard-item">
+                    <span class="rank">1.</span>
+                    <div class="player-info">
+                        <div class="avatar gold">A</div>
+                        <span class="name">Alice</span>
+                    </div>
+                    <span class="score">150</span>
+                </div>
+                <div class="leaderboard-item you">
+                    <span class="rank">2.</span>
+                    <div class="player-info">
+                        <div class="avatar silver">B</div>
+                        <span class="name">Bob</span>
+                    </div>
+                    <span class="score">120</span>
+                </div>
+                <div class="leaderboard-item">
+                    <span class="rank">3.</span>
+                    <div class="player-info">
+                        <div class="avatar bronze">C</div>
+                        <span class="name">Charlie</span>
+                    </div>
+                    <span class="score">100</span>
+                </div>
             </div>
+            <div class="leaderboard-updated">Updated: 12:34 PM</div>
         </div>
     </section>
 
     <section class="container hidden" id="game-container">
+        <button type="button" id="game-theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+            <i class="fas fa-moon"></i>
+        </button>
         <div class="user-profile">
             <span id="game-user-avatar">
                 <i class="fas fa-user"></i>
             </span>
             <div class="dropdown-content hidden">
-                <button id="game-dropdown-logout-btn">
+                <button type="button" id="game-dropdown-logout-btn">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </button>
             </div>
